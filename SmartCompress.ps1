@@ -22,6 +22,53 @@ function Refresh-Path {
                 [System.Environment]::GetEnvironmentVariable("Path","User")
 }
 
+function Install-Python {
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        Write-Step "Installing Python via Chocolatey..."
+        choco install python --yes --no-progress
+        return
+    }
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        Write-Step "Installing Python via winget..."
+        winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
+        return
+    }
+    Write-Step "Downloading Python 3.12 installer..."
+    $url = "https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe"
+    $tmp = Join-Path $env:TEMP "sc-python-installer.exe"
+    (New-Object System.Net.WebClient).DownloadFile($url, $tmp)
+    Write-Step "Installing Python (this may take a moment)..."
+    Start-Process $tmp -ArgumentList @("/quiet", "InstallAllUsers=0", "PrependPath=1", "Include_launcher=0") -Wait
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+}
+
+function Install-Git {
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        Write-Step "Installing Git via Chocolatey..."
+        choco install git --yes --no-progress
+        return
+    }
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        Write-Step "Installing Git via winget..."
+        winget install Git.Git --silent --accept-package-agreements --accept-source-agreements
+        return
+    }
+    Write-Step "Finding latest Git release..."
+    try {
+        $rel   = Invoke-RestMethod "https://api.github.com/repos/git-for-windows/git/releases/latest"
+        $asset = $rel.assets | Where-Object { $_.name -like "*64-bit.exe" } | Select-Object -First 1
+        $url   = $asset.browser_download_url
+    } catch {
+        Write-Err "Could not find Git installer. Install manually from https://git-scm.com"
+    }
+    $tmp = Join-Path $env:TEMP "sc-git-installer.exe"
+    Write-Step "Downloading Git installer..."
+    (New-Object System.Net.WebClient).DownloadFile($url, $tmp)
+    Write-Step "Installing Git (this may take a moment)..."
+    Start-Process $tmp -ArgumentList @("/VERYSILENT", "/NORESTART", "/NOCANCEL", "/SP-") -Wait
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+}
+
 try {
 
 Write-Host ""
@@ -31,7 +78,7 @@ Write-Host "  ============================================" -ForegroundColor Dar
 Write-Host ""
 
 # ── Python ────────────────────────────────────────────────────────────────────
-# Skip Microsoft Store stubs — they open the Store instead of running Python.
+# Skip Microsoft Store stubs - they open the Store instead of running Python.
 $PY = $null
 foreach ($cmd in @("python", "python3")) {
     $c = Get-Command $cmd -ErrorAction SilentlyContinue
@@ -40,26 +87,21 @@ foreach ($cmd in @("python", "python3")) {
 
 if (-not $PY) {
     Write-Warn "Python not found."
-    if (Get-Command winget -ErrorAction SilentlyContinue) {
-        $ans = Read-Host "  Install Python automatically? [Y/n]"
-        if ($ans -eq "" -or $ans -match "^[Yy]") {
-            Write-Step "Installing Python 3.12 via winget..."
-            winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
-            Refresh-Path
-            foreach ($cmd in @("python", "python3")) {
-                $c = Get-Command $cmd -ErrorAction SilentlyContinue
-                if ($c -and $c.Source -notlike "*WindowsApps*") { $PY = $c; break }
-            }
-            if (-not $PY) {
-                Write-Warn "Installed - PATH needs a refresh. Close this window and run again."
-                throw "NEEDS_RESTART"
-            }
-            Write-OK "Python installed."
-        } else {
-            Write-Err "Python 3.10+ required. Install from https://python.org (tick 'Add Python to PATH')."
+    $ans = Read-Host "  Install Python automatically? [Y/n]"
+    if ($ans -eq "" -or $ans -match "^[Yy]") {
+        Install-Python
+        Refresh-Path
+        foreach ($cmd in @("python", "python3")) {
+            $c = Get-Command $cmd -ErrorAction SilentlyContinue
+            if ($c -and $c.Source -notlike "*WindowsApps*") { $PY = $c; break }
         }
+        if (-not $PY) {
+            Write-Warn "Installed - PATH needs a refresh. Close this window and run again."
+            throw "NEEDS_RESTART"
+        }
+        Write-OK "Python installed."
     } else {
-        Write-Err "Python not found. Install Python 3.10+ from https://python.org (tick 'Add Python to PATH')."
+        Write-Err "Python 3.10+ required. Install from https://python.org (tick 'Add Python to PATH')."
     }
 }
 
@@ -75,22 +117,17 @@ Write-OK "Python $pyver"
 # ── Git ───────────────────────────────────────────────────────────────────────
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Warn "Git not found."
-    if (Get-Command winget -ErrorAction SilentlyContinue) {
-        $ans = Read-Host "  Install Git automatically? [Y/n]"
-        if ($ans -eq "" -or $ans -match "^[Yy]") {
-            Write-Step "Installing Git via winget..."
-            winget install Git.Git --silent --accept-package-agreements --accept-source-agreements
-            Refresh-Path
-            if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-                Write-Warn "Installed - PATH needs a refresh. Close this window and run again."
-                throw "NEEDS_RESTART"
-            }
-            Write-OK "Git installed."
-        } else {
-            Write-Err "Git required. Install from https://git-scm.com"
+    $ans = Read-Host "  Install Git automatically? [Y/n]"
+    if ($ans -eq "" -or $ans -match "^[Yy]") {
+        Install-Git
+        Refresh-Path
+        if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+            Write-Warn "Installed - PATH needs a refresh. Close this window and run again."
+            throw "NEEDS_RESTART"
         }
+        Write-OK "Git installed."
     } else {
-        Write-Err "Git not found. Install from https://git-scm.com"
+        Write-Err "Git required. Install from https://git-scm.com"
     }
 }
 Write-OK "Git"
