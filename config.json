@@ -1,0 +1,38 @@
+{
+  "presets": [
+    {"key": "1", "id": "discord_free",        "size_mb": 10,   "codecs": ["h264"], "label": "Discord Free        -  10 MB"},
+    {"key": "2", "id": "discord_nitro_basic", "size_mb": 25,   "codecs": ["h264"], "label": "Discord Nitro Basic -  25 MB"},
+    {"key": "3", "id": "discord_nitro",       "size_mb": 500,  "codecs": ["h264"], "label": "Discord Nitro       - 500 MB"},
+    {"key": "4", "id": "smallest",            "size_mb": null, "codecs": ["av1","h265","h264"], "label": "Smallest Possible   - no limit"},
+    {"key": "5", "id": "custom",              "size_mb": null, "codecs": ["av1","h265","h264"], "label": "Custom              - you set it"}
+  ],
+
+  "encoder_candidates": {
+    "av1":  ["av1_nvenc",  "av1_amf",  "libaom-av1"],
+    "h265": ["hevc_nvenc", "hevc_amf", "libx265"],
+    "h264": ["h264_nvenc", "h264_amf", "libx264"]
+  },
+
+  "default_cqp": {
+    "av1_nvenc": 32,  "av1_amf": 32,  "libaom-av1": 32,
+    "hevc_nvenc": 28, "hevc_amf": 28, "libx265": 28,
+    "h264_nvenc": 23, "h264_amf": 23, "libx264": 23
+  },
+
+  "max_cqp": {
+    "av1":  55,
+    "h265": 45,
+    "h264": 45
+  },
+
+  "ssim_floor": 0.87,
+
+  "resolution_steps": [2160, 1440, 1080, 720, 540, 480, 360],
+
+  "ssim_labels": [
+    {"min": 0.97, "label": "Excellent - barely perceptible difference"},
+    {"min": 0.93, "label": "Good - minor artifacts, still clean"},
+    {"min": 0.87, "label": "Acceptable - noticeable compression, readable"},
+    {"min": 0.00, "label": "Poor - significant quality loss"}
+  ]
+}

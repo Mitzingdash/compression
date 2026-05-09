@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# SmartCompress output & temp files
+out/
+_sc_tmp_*.mp4
+
+# Video/image files at repo root (test clips, sample inputs, etc.)
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.webm
+*.png
+*.jpg
+*.jpeg
+*.bmp
+
+# Claude Code local settings
+.claude/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
