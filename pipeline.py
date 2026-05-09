@@ -1,4 +1,4 @@
-"""CQP estimation, SSIM scoring, and the smart compress-to-target loop."""
+"""CQP binary search, SSIM scoring, and the smart compress pipeline."""
 
 import math
 import subprocess
@@ -6,39 +6,8 @@ import threading
 from pathlib import Path
 
 import config
+import log
 from encoder import run_encode, progress_bar
-
-
-def estimate_start_cqp(
-    encoder: str,
-    src_bitrate_kbps: int,
-    target_size: int,
-    duration_s: float,
-    complexity: str,
-    default_cqp: int,
-) -> int:
-    """
-    Estimate CQP starting point using actual video bitrate and duration.
-
-    1. Compute available target bitrate from size limit + duration.
-    2. Every +6 CQP roughly halves bitrate, so:
-         delta = 6 * log2(src_bitrate / target_bitrate)
-    3. Nudge higher for complex content (resists compression more).
-    4. Back off 3 steps to leave room for the binary search quality sweep.
-    """
-    if duration_s <= 0 or src_bitrate_kbps <= 0:
-        return default_cqp
-
-    target_kbps = (target_size * 8) / (duration_s * 1000)
-    if target_kbps >= src_bitrate_kbps:
-        return default_cqp
-
-    delta = int(6 * math.log2(src_bitrate_kbps / target_kbps))
-    nudge = {"Simple": -1, "Medium": 0, "Complex": 3}.get(complexity, 0)
-
-    estimated = default_cqp + delta + nudge
-    cap = config.max_cqp(config.codec_family(encoder)) - 2
-    return max(default_cqp, min(estimated - 3, cap))
 
 
 def calc_ssim(
@@ -120,32 +89,43 @@ def compress_to_target(
     complexity: str = "Medium",
 ) -> bool:
     """
-    Binary search CQP at a fixed resolution until output fits size_limit.
-    Returns True if a file was written to dst.
+    Binary search CQP from default_cqp upward until the smallest file that
+    still fits size_limit is found. Returns True if a file was written to dst.
     """
     if size_limit is None:
         res_label = f" at {scale_height}p" if scale_height else ""
-        print(f"  CQP {default_cqp}{res_label}  (no size limit)\n")
+        msg = f"  CQP {default_cqp}{res_label}  (no size limit)"
+        print(msg)
+        log.w(msg)
+        print()
         return run_encode(ffmpeg, src, dst, encoder, default_cqp, scale_height, duration_s)
 
-    lo = estimate_start_cqp(encoder, src_bitrate_kbps, size_limit, duration_s, complexity, default_cqp)
-    hi = config.max_cqp(config.codec_family(encoder), complexity)
+    lo = default_cqp
+    hi = config.max_cqp(encoder, complexity)
     best: Path | None = None
 
     res_label = f" at {scale_height}p" if scale_height else ""
-    print(f"  Target: {config.fmt_mb(size_limit)}  |  CQP {lo}-{hi}{res_label}\n")
+    header = f"  Target: {config.fmt_mb(size_limit)}  |  CQP {lo}-{hi}{res_label}"
+    print(header)
+    log.w(header)
+    print()
 
     for attempt in range(1, 9):
         cqp = (lo + hi) // 2
         tmp = dst.parent / f"_sc_tmp_{cqp}.mp4"
 
-        print(f"  Pass {attempt}  CQP {cqp:>2}")
+        pass_line = f"  Pass {attempt}  CQP {cqp:>2}"
+        print(pass_line)
+        log.w(pass_line)
+
         if not run_encode(ffmpeg, src, tmp, encoder, cqp, scale_height, duration_s):
             return False
 
         size = tmp.stat().st_size
         fits = size <= size_limit
-        print(f"    {config.fmt_mb(size)}  {'OK fits' if fits else 'X  too big'}")
+        result_line = f"    {config.fmt_mb(size)}  {'OK fits' if fits else 'X  too big'}"
+        print(result_line)
+        log.w(result_line)
 
         if fits:
             if best and best.exists():
@@ -180,17 +160,23 @@ def compress_no_limit(
     stays above the floor. Gives the smallest file that still looks good.
     Returns (success, final_ssim).
     """
-    max_q  = config.max_cqp(config.codec_family(encoder))
+    max_q  = config.max_cqp(encoder)
     lo, hi = default_cqp, max_q
     best: tuple[int, Path, float] | None = None   # (cqp, tmp_path, ssim)
 
-    print(f"  Squeezing: SSIM floor {ssim_floor}  |  CQP {lo}-{hi}\n")
+    header = f"  Squeezing: SSIM floor {ssim_floor}  |  CQP {lo}-{hi}"
+    print(header)
+    log.w(header)
+    print()
 
     for attempt in range(1, 9):
         cqp = (lo + hi) // 2
         tmp = dst.parent / f"_sc_tmp_{cqp}.mp4"
 
-        print(f"  Pass {attempt}  CQP {cqp:>2}")
+        pass_line = f"  Pass {attempt}  CQP {cqp:>2}"
+        print(pass_line)
+        log.w(pass_line)
+
         if not run_encode(ffmpeg, src, tmp, encoder, cqp, scale_height, duration_s):
             return False, None
 
@@ -198,14 +184,18 @@ def compress_no_limit(
         ssim = calc_ssim(ffmpeg, src, tmp, match_height=scale_height, duration_s=duration_s)
 
         if ssim is None:
-            print(f"    {config.fmt_mb(size)}  SSIM unavailable - accepting")
+            msg = f"    {config.fmt_mb(size)}  SSIM unavailable - accepting"
+            print(msg)
+            log.w(msg)
             if best:
                 best[1].unlink(missing_ok=True)
             tmp.replace(dst)
             return True, None
 
         fits = ssim >= ssim_floor
-        print(f"    {config.fmt_mb(size)}  SSIM {ssim:.4f}  {'OK' if fits else 'X quality too low'}")
+        result_line = f"    {config.fmt_mb(size)}  SSIM {ssim:.4f}  {'OK' if fits else 'X quality too low'}"
+        print(result_line)
+        log.w(result_line)
 
         if fits:
             if best:
@@ -224,7 +214,9 @@ def compress_no_limit(
         return True, best[2]   # reuse already-computed SSIM, no second check
 
     # Couldn't even pass the floor at default_cqp — just encode at default
-    print("  Could not improve on default quality — encoding at default CQP.")
+    msg = "  Could not improve on default quality — encoding at default CQP."
+    print(msg)
+    log.w(msg)
     ok = run_encode(ffmpeg, src, dst, encoder, default_cqp, scale_height, duration_s)
     return ok, None
 
@@ -260,16 +252,23 @@ def compress_smart(
         scale  = None if forced_res >= src_height else forced_res
         ladder = [scale]
 
-    print(f"  Quality floor:  SSIM {floor}  ({complexity} content)")
+    floor_line = f"  Quality floor:  SSIM {floor}  ({complexity} content)"
+    print(floor_line)
+    log.w(floor_line)
     if size_limit and forced_res == 0:
-        print(f"  Resolution cap: {min_height}p minimum  (source: {src_height}p)")
+        cap_line = f"  Resolution cap: {min_height}p minimum  (source: {src_height}p)"
+        print(cap_line)
+        log.w(cap_line)
     print()
 
     # ── no size limit: squeeze at chosen resolution ───────────────────────────
     if size_limit is None:
         scale = ladder[0]
         label = f"{src_height}p (original)" if scale is None else f"{scale}p"
-        print(f"\n--- Resolution: {label} ---\n")
+        res_header = f"\n--- Resolution: {label} ---"
+        print(res_header)
+        log.w(res_header)
+        print()
         success, ssim = compress_no_limit(
             ffmpeg, src, dst, encoder, default_cqp, floor,
             scale_height=scale, duration_s=duration_s,
@@ -279,7 +278,10 @@ def compress_smart(
     # ── size-limited: try resolution(s) in order ─────────────────────────────
     for res in ladder:
         label = f"{res}p" if res else f"{src_height}p (original)"
-        print(f"\n--- Resolution: {label} ---\n")
+        res_header = f"\n--- Resolution: {label} ---"
+        print(res_header)
+        log.w(res_header)
+        print()
 
         success = compress_to_target(
             ffmpeg, src, dst, encoder, default_cqp, size_limit, res,
@@ -290,32 +292,46 @@ def compress_smart(
 
         if not success:
             if len(ladder) == 1:
-                print(f"  Could not hit target at {label}.")
+                msg = f"  Could not hit target at {label}."
+                print(msg)
+                log.w(msg)
                 print("  Try a lower resolution or a larger size limit.")
             elif res == ladder[-1]:
-                print(f"  Could not hit target at {label} (minimum resolution reached).")
+                msg = f"  Could not hit target at {label} (minimum resolution reached)."
+                print(msg)
+                log.w(msg)
             else:
-                print(f"  Could not hit target at {label} - dropping to lower resolution...")
+                msg = f"  Could not hit target at {label} - dropping to lower resolution..."
+                print(msg)
+                log.w(msg)
             continue
 
         print()
         ssim = calc_ssim(ffmpeg, src, dst, match_height=res, duration_s=duration_s)
 
         if ssim is None:
-            print(f"  SSIM unavailable - accepting result.")
+            msg = "  SSIM unavailable - accepting result."
+            print(msg)
+            log.w(msg)
             return True, None, res
 
-        print(f"  SSIM {ssim:.4f}  -  {config.ssim_label(ssim)}  (floor: {floor}  [{complexity}])")
+        ssim_line = f"  SSIM {ssim:.4f}  -  {config.ssim_label(ssim)}  (floor: {floor}  [{complexity}])"
+        print(ssim_line)
+        log.w(ssim_line)
 
         if ssim >= floor:
             return True, ssim, res
 
         # Quality missed the floor
         if len(ladder) == 1:
-            print(f"  Quality below {complexity} floor - but resolution was manually set, keeping result.")
+            msg = f"  Quality below {complexity} floor - but resolution was manually set, keeping result."
+            print(msg)
+            log.w(msg)
             return True, ssim, res
 
-        print(f"  Quality below {complexity} floor ({floor}) - dropping to lower resolution...")
+        msg = f"  Quality below {complexity} floor ({floor}) - dropping to lower resolution..."
+        print(msg)
+        log.w(msg)
         if dst.exists():
             dst.unlink()
 

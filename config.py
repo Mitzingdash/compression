@@ -25,9 +25,6 @@ def resolution_info() -> dict:
 def default_cqp(encoder: str) -> int:
     return _cfg["default_cqp"][encoder]
 
-def max_cqp(family: str) -> int:
-    return _cfg["max_cqp"][family]
-
 def ssim_label(score: float) -> str:
     for entry in _cfg["ssim_labels"]:
         if score >= entry["min"]:
@@ -42,8 +39,9 @@ def codec_family(encoder: str) -> str:
 def ssim_floor(complexity: str = "Medium") -> float:
     return _cfg["ssim_floors"].get(complexity, 0.93)
 
-def max_cqp(family: str, complexity: str = "Medium") -> int:
-    base = _cfg["max_cqp"][family]
+def max_cqp(encoder: str, complexity: str = "Medium") -> int:
+    mc   = _cfg["max_cqp"]
+    base = mc.get(encoder) or mc.get(codec_family(encoder), 45)
     cap  = _cfg["max_cqp_by_complexity"].get(complexity, base)
     return min(base, cap)
 

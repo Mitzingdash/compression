@@ -113,4 +113,5 @@ ok "Dependencies ready."
 echo ""
 
 # ── Launch ────────────────────────────────────────────────────────────────────
+export SC_OUT_DIR="$SCRIPT_DIR"
 "$PYTHON" "$REPO_DIR/compress.py"

@@ -1,5 +1,6 @@
 """Interactive wizard steps — collects input file, preset, and output location."""
 
+import os
 from pathlib import Path
 
 import config
@@ -173,7 +174,8 @@ def step_output(input_path: Path) -> tuple[str, Path]:
     divider()
 
     print("STEP 6 - Output folder")
-    default_folder = str(HERE / "out")
+    sc_out = os.environ.get("SC_OUT_DIR")
+    default_folder = str(Path(sc_out) / "out") if sc_out else str(HERE / "out")
     raw_folder = ask("Folder", default_folder)
     out_folder = Path(_clean_path(raw_folder))
     out_folder.mkdir(parents=True, exist_ok=True)

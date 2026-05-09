@@ -8,6 +8,9 @@ __pycache__/
 out/
 _sc_tmp_*.mp4
 
+# Launcher-generated clone (users run SmartCompress.ps1/.sh from this folder)
+/compression
+
 # Video/image files at repo root (test clips, sample inputs, etc.)
 *.mp4
 *.mkv
@@ -21,6 +24,9 @@ _sc_tmp_*.mp4
 
 # Claude Code local settings
 .claude/
+
+# Logs
+*.log
 
 # OS junk
 .DS_Store

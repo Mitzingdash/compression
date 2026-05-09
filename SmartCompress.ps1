@@ -135,9 +135,8 @@ Write-OK "Dependencies ready."
 Write-Host ""
 
 # ── Launch ────────────────────────────────────────────────────────────────────
+$env:SC_OUT_DIR = $ROOT
 & $PYTHON (Join-Path $REPO_DIR "compress.py")
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Read-Host "  Press Enter to exit"
-}
+Write-Host ""
+Read-Host "  Press Enter to exit"

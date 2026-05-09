@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
 
   "presets": [
     {"key": "1", "id": "discord_free",        "size_mb": 10,   "codecs": ["h264"], "label": "Discord Free        -  10 MB"},
@@ -22,9 +22,9 @@
   },
 
   "max_cqp": {
-    "av1":  55,
-    "h265": 45,
-    "h264": 45
+    "av1_nvenc": 55, "av1_amf": 55, "libaom-av1": 55,
+    "hevc_nvenc": 45, "hevc_amf": 45, "libx265": 45,
+    "h264_nvenc": 45, "h264_amf": 45, "libx264": 45
   },
 
   "ssim_floors": {
