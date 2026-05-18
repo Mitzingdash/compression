@@ -25,7 +25,7 @@ A fast, local video compressor that figures out the encoder, resolution and qual
 
 ## Install
 
-1. Grab the latest `SmartCompress-v3.0.0-win-x64.zip` from the [Releases](https://github.com/Mitzingdash/compression/releases) page.
+1. Grab the latest `SmartCompress-v3.0.0-win-x64.zip` from the [Releases](https://codeberg.org/Mitzingdash/smartcompress/releases) page.
 2. Extract it anywhere — Desktop, USB stick, `C:\Tools\`, doesn't matter. It's fully portable.
 3. Double-click `SmartCompress.exe`.
 
@@ -196,13 +196,13 @@ See `config.json` in the release for the full list (presets, encoder labels, SSI
 
 ## Old Python version
 
-The original Python prototype is preserved in the [`old`](https://github.com/Mitzingdash/compression/tree/old) branch of this repo for reference. It is unmaintained — all new work happens against the C# tree on `main`.
+The original Python prototype is preserved in the [`old`](https://codeberg.org/Mitzingdash/smartcompress/src/branch/old) branch of this repo for reference. It is unmaintained — all new work happens against the C# tree on `main`.
 
 ---
 
 ## Credits
 
-Made by [Mitzingdash](https://github.com/Mitzingdash) — solo project, weekend hobby scale.
+Made by [Mitzingdash](https://codeberg.org/Mitzingdash) — solo project, weekend hobby scale.
 
 Made utilising AI assistance for parts of the rewrite (predictor math, refactoring, docs).
 
