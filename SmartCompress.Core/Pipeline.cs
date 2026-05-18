@@ -720,6 +720,14 @@ public static class Pipeline
                 "-qp_i", cqp.ToString(), "-qp_p", cqp.ToString(), "-qp_b", cqp.ToString()]);
         else if (encoder.Contains("qsv"))
             args.AddRange(["-global_quality", cqp.ToString(), "-look_ahead", "1"]);
+        else if (encoder.Contains("videotoolbox"))
+        {
+            // VideoToolbox -q:v is 1-100 (higher = better) — opposite of CRF/QP.
+            // Linear inversion gets us in the right ballpark; EncoderSlope + the
+            // self-calibration bias will absorb any per-machine drift over time.
+            int vtQ = Math.Clamp(100 - cqp * 2, 1, 100);
+            args.AddRange(["-q:v", vtQ.ToString()]);
+        }
         else
             args.AddRange(["-crf", cqp.ToString()]);
 

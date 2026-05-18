@@ -6,7 +6,7 @@
 
 A fast, local video compressor that figures out the encoder, resolution and quality settings for you. Built around a learning predictor so each run gets faster as it learns your hardware's behaviour.
 
-**Status:** v3.0.0 — full C# rewrite. Windows only for now.
+**Status:** v3.1.0 — Windows, Linux, and macOS (Intel + Apple Silicon).
 
 ---
 

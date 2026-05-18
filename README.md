@@ -4,13 +4,21 @@
 
 A fast, local video compressor that figures out the encoder, resolution and quality settings for you. Built around a learning predictor so each run gets faster as it learns your hardware's behaviour.
 
-**Status:** v3.0.0 — full C# rewrite of the original Python prototype. Windows only for now; cross-platform builds will follow.
+**Status:** v3.1.0 — Windows, Linux, and macOS (Intel + Apple Silicon).
 
 ---
 
-## What's new in v3.0.0
+## What's new in v3.1.0
 
-- **Full rewrite in C#** — single self-contained `.exe`, no Python, no virtualenv, no pip
+- **Linux and macOS builds** — self-contained binaries for `linux-x64`, `osx-x64`, `osx-arm64` alongside Windows
+- **VideoToolbox** — macOS hardware encoding via `h264_videotoolbox` / `hevc_videotoolbox`
+- **System ffmpeg auto-detection** — if `ffmpeg` and `ffprobe` are already on your `PATH`, SmartCompress uses them and skips the 75 MB download (great on Linux where ffmpeg is usually installed)
+
+> Linux AMD users currently fall back to CPU encoders (libx264/libx265/libsvtav1). Full VAAPI hardware support is the focus for 3.2.0.
+
+## What's in v3.0.0
+
+- **Full rewrite in C#** — single self-contained binary, no Python, no virtualenv, no pip
 - **Batch mode** — drop a folder, get a per-file preview table, then run the whole thing
 - **Benchmark mode** — sweeps your GPU encoders across CQPs and resolutions to populate a high-quality reference cache
 - **Two-path Estimator** — predicts up-front whether your size limit is binding, then picks the optimal strategy:
@@ -25,11 +33,39 @@ A fast, local video compressor that figures out the encoder, resolution and qual
 
 ## Install
 
-1. Grab the latest `SmartCompress-v3.0.0-win-x64.zip` from the [Releases](https://codeberg.org/Mitzingdash/smartcompress/releases) page.
-2. Extract it anywhere — Desktop, USB stick, `C:\Tools\`, doesn't matter. It's fully portable.
+Grab the build for your platform from the [Releases](https://codeberg.org/Mitzingdash/smartcompress/releases) page.
+
+### Windows
+
+1. Download `SmartCompress-v3.1.0-win-x64.zip`.
+2. Extract anywhere — Desktop, USB stick, `C:\Tools\`, doesn't matter. It's fully portable.
 3. Double-click `SmartCompress.exe`.
 
-That's it. First launch downloads ffmpeg (~75 MB) into the same folder, then you're in.
+### Linux
+
+```bash
+tar -xzf SmartCompress-v3.1.0-linux-x64.tar.gz -C ~/Apps/smartcompress
+cd ~/Apps/smartcompress
+chmod +x SmartCompress
+./SmartCompress
+```
+
+If you already have ffmpeg installed (most distros), SmartCompress will pick it up from your `PATH` and skip the download.
+
+### macOS
+
+```bash
+tar -xzf SmartCompress-v3.1.0-osx-arm64.tar.gz -C ~/Apps/smartcompress    # Apple Silicon
+# or
+tar -xzf SmartCompress-v3.1.0-osx-x64.tar.gz -C ~/Apps/smartcompress      # Intel Mac
+
+cd ~/Apps/smartcompress
+chmod +x SmartCompress
+xattr -d com.apple.quarantine SmartCompress    # let Gatekeeper run the unsigned binary
+./SmartCompress
+```
+
+First launch downloads ffmpeg (~75 MB) next to the binary, **unless** ffmpeg is already on your `PATH` (Homebrew, apt, etc.) — in which case the bundled download is skipped.
 
 > No installer, no PATH changes, no admin rights. Delete the folder to uninstall.
 
@@ -141,7 +177,7 @@ Everything tunable lives in `config.json` next to the `.exe`. Edit it directly �
 
 ```json
 {
-  "version": "3.0.0",
+  "version": "3.1.0",
   "ssim_floors":  { "Simple": 0.95, "Medium": 0.93, "Complex": 0.96 },
   "default_cqp":  { "hevc_amf": 28, "h264_amf": 23, ... },
   "max_cqp":      { "h264_amf": 45, ... },
@@ -155,8 +191,8 @@ See `config.json` in the release for the full list (presets, encoder labels, SSI
 
 ## Roadmap
 
-### Done in 3.0.0
-- [x] Full C# / Spectre.Console rewrite, single-file portable .exe
+### Done
+- [x] Full C# / Spectre.Console rewrite, single-file portable binary
 - [x] Hardware encoder detection (test-encode, not compile-time probe)
 - [x] CQP cache with adaptive complexity fingerprinting
 - [x] Two-path Estimator (QualityFirst vs SizeConstrained)
@@ -169,8 +205,12 @@ See `config.json` in the release for the full list (presets, encoder labels, SSI
 - [x] Live ETA + benchmark progress bar
 - [x] Clean Ctrl+C cancellation
 - [x] Input lockout (keystrokes during encodes can't skip prompts)
+- [x] Cross-platform builds — Windows, Linux, macOS (Intel + Apple Silicon)
+- [x] VideoToolbox support (macOS hardware encoding)
+- [x] System ffmpeg auto-detection
 
-### Up next (before any new media types)
+### Up next (3.2.0)
+- [ ] VAAPI hardware encoding for Linux AMD users
 - [ ] Wizard rework — restructure to take full advantage of the batch flow
 - [ ] Per-video config step (optional toggle: pick encoder/res per file, or stay auto)
 
@@ -180,7 +220,6 @@ See `config.json` in the release for the full list (presets, encoder labels, SSI
 - [ ] Community lookup table (opt-in crowdsourced encode data)
 
 ### Later
-- [ ] Cross-platform builds (Linux, macOS)
 - [ ] Avalonia GUI
 - [ ] Neural network on top of the lookup table
 

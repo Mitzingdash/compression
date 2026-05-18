@@ -4,9 +4,14 @@ namespace SmartCompress.Core;
 /// Centralises all path decisions so the rest of the app never has to
 /// know whether it's running portable (debug / USB) or installed.
 ///
-/// Portable:  everything lives next to the exe (current debug behaviour).
+/// Portable:  everything lives next to the exe (debug + every Linux/macOS
+///            zip extract + every Windows install that isn't under Program
+///            Files). This is the common case.
 /// Installed: user data goes to %LOCALAPPDATA%\SmartCompress,
 ///            default output goes to %USERPROFILE%\Videos\SmartCompress.
+///            Only triggers when the exe lives under %ProgramFiles% on
+///            Windows (no Linux/macOS installer ships yet, so the
+///            installed branch is Windows-only in practice).
 ///
 /// Drop a "portable.flag" file next to the exe to force portable mode
 /// even when installed to Program Files.

@@ -9,22 +9,45 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.InputEncoding  = System.Text.Encoding.UTF8;
 
 // ── FFmpeg setup ──────────────────────────────────────────────────────────────
+// Order: $PATH > bundled > download. Linux/macOS users typically have ffmpeg
+// installed; using theirs avoids a redundant ~75 MB download.
 var ffmpegDir = AppPaths.FfmpegDir;
 Directory.CreateDirectory(ffmpegDir);
 
-var ffmpegOptions = new FFOptions { BinaryFolder = ffmpegDir, TemporaryFilesFolder = Path.GetTempPath() };
-GlobalFFOptions.Configure(ffmpegOptions);
+string ffmpegExe;
+string ffmpegSource;
 
-var ffmpegExe = Path.Combine(ffmpegDir, OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
-if (!File.Exists(ffmpegExe))
+var onPath = FfmpegResolver.TryFindOnPath();
+if (onPath != null)
 {
-    AnsiConsole.MarkupLine("[cyan]FFmpeg not found.[/] Downloading [dim](one-time setup, ~75 MB)...[/]");
-    await FFMpegDownloader.DownloadBinaries(
-        version:  FFMpegVersions.LatestAvailable,
-        binaries: FFMpegBinaries.FFMpeg | FFMpegBinaries.FFProbe,
-        options:  ffmpegOptions);
-    AnsiConsole.MarkupLine("[green]FFmpeg ready.[/]\n");
+    GlobalFFOptions.Configure(new FFOptions {
+        BinaryFolder = onPath.Directory, TemporaryFilesFolder = Path.GetTempPath()
+    });
+    ffmpegExe    = onPath.FfmpegPath;
+    ffmpegSource = $"system  [dim]({onPath.FfmpegPath})[/]";
 }
+else
+{
+    var ffmpegOptions = new FFOptions { BinaryFolder = ffmpegDir, TemporaryFilesFolder = Path.GetTempPath() };
+    GlobalFFOptions.Configure(ffmpegOptions);
+    ffmpegExe = Path.Combine(ffmpegDir, OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
+
+    if (File.Exists(ffmpegExe))
+    {
+        ffmpegSource = $"bundled [dim]({ffmpegDir})[/]";
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[cyan]FFmpeg not found.[/] Downloading [dim](one-time setup, ~75 MB)...[/]");
+        await FFMpegDownloader.DownloadBinaries(
+            version:  FFMpegVersions.LatestAvailable,
+            binaries: FFMpegBinaries.FFMpeg | FFMpegBinaries.FFProbe,
+            options:  ffmpegOptions);
+        ffmpegSource = $"downloaded [dim]({ffmpegDir})[/]";
+        AnsiConsole.MarkupLine("[green]FFmpeg ready.[/]\n");
+    }
+}
+AnsiConsole.MarkupLine($"  [dim]ffmpeg:[/] {ffmpegSource}");
 
 // ── Config ────────────────────────────────────────────────────────────────────
 var configPath = AppPaths.ConfigFile;

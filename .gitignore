@@ -11,10 +11,11 @@ obj/
 project.lock.json
 artifacts/
 
-# Publish output (we attach the zip to GitHub releases, not commit it)
+# Publish output (we attach the archive to the release page, not commit it)
 publish/
 *.zip
 *.7z
+*.tar.gz
 
 # IDE
 .vs/
