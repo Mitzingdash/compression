@@ -17,6 +17,9 @@ publish/
 *.7z
 *.tar.gz
 
+# Release tooling — body drafts, PAT, and the release script all live locally.
+tools/release/
+
 # IDE
 .vs/
 .vscode/
